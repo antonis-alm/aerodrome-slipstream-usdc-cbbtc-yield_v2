@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from typing import Any
 
 from almanak.framework.intents import Intent
@@ -51,6 +51,7 @@ class AerodromeSlipstreamUsdcCbbtcYieldStrategy(IntentStrategy):
         pool_parts = [part.strip() for part in self.pool.split("/") if part.strip()]
         self.pool_token0 = pool_parts[0] if len(pool_parts) > 0 else self.quote_token
         self.pool_token1 = pool_parts[1] if len(pool_parts) > 1 else self.base_token
+        self.pool_tick_spacing = int(pool_parts[2]) if len(pool_parts) > 2 and pool_parts[2].isdigit() else 1
 
         self.rsi_period = int(cfg("rsi_period", 14))
         self.rsi_timeframe = str(cfg("rsi_timeframe", "1h"))
@@ -89,7 +90,7 @@ class AerodromeSlipstreamUsdcCbbtcYieldStrategy(IntentStrategy):
         self._position_id: str | None = None
         self._range_lower: Decimal | None = None
         self._range_upper: Decimal | None = None
-        self._pending_range: tuple[Decimal, Decimal] | None = None
+        self._pending_range: tuple[int, int] | None = None
         self._opened_at: datetime | None = None
         self._last_close_at: datetime | None = None
 
@@ -99,6 +100,19 @@ class AerodromeSlipstreamUsdcCbbtcYieldStrategy(IntentStrategy):
     def _range_width_pct(self, atr_value_pct: Decimal) -> Decimal:
         dynamic = max(self.base_range_width_pct, atr_value_pct * self.atr_width_multiplier)
         return min(self.max_range_width_pct, max(self.min_range_width_pct, dynamic))
+
+    def _normalize_lp_bounds(self, range_lower: Decimal, range_upper: Decimal) -> tuple[int, int] | None:
+        spacing = max(1, self.pool_tick_spacing)
+        lower_int = int(range_lower.to_integral_value(rounding=ROUND_FLOOR))
+        upper_int = int(range_upper.to_integral_value(rounding=ROUND_CEILING))
+
+        lower_aligned = (lower_int // spacing) * spacing
+        upper_aligned = ((upper_int + spacing - 1) // spacing) * spacing
+        if upper_aligned <= lower_aligned:
+            upper_aligned = lower_aligned + spacing
+        if lower_aligned <= 0 or upper_aligned <= 0:
+            return None
+        return lower_aligned, upper_aligned
 
     def _safe_projected_il_pct(self, market: MarketSnapshot) -> Decimal | None:
         if not hasattr(market, "projected_il"):
@@ -202,13 +216,18 @@ class AerodromeSlipstreamUsdcCbbtcYieldStrategy(IntentStrategy):
         if range_lower <= 0 or range_upper <= range_lower:
             return None
 
-        self._pending_range = (range_lower, range_upper)
+        normalized_bounds = self._normalize_lp_bounds(range_lower, range_upper)
+        if normalized_bounds is None:
+            return None
+
+        range_lower_int, range_upper_int = normalized_bounds
+        self._pending_range = (range_lower_int, range_upper_int)
         return Intent.lp_open(
             pool=self.pool,
             amount0=amount0,
             amount1=amount1,
-            range_lower=range_lower,
-            range_upper=range_upper,
+            range_lower=range_lower_int,
+            range_upper=range_upper_int,
             protocol=self.protocol,
             chain=self.execution_chain,
         )
@@ -434,7 +453,8 @@ class AerodromeSlipstreamUsdcCbbtcYieldStrategy(IntentStrategy):
             if position_id is not None:
                 self._position_id = str(position_id)
             if self._pending_range is not None:
-                self._range_lower, self._range_upper = self._pending_range
+                self._range_lower = Decimal(str(self._pending_range[0]))
+                self._range_upper = Decimal(str(self._pending_range[1]))
             self._pending_range = None
             self._opened_at = self._now()
 

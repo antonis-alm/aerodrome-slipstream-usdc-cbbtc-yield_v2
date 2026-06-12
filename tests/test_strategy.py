@@ -177,6 +177,14 @@ def test_no_position_opens_lp_when_conditions_met(strategy):
     result = strategy.decide(_market())
 
     assert _intent_value(result) == "LP_OPEN"
+    lower = int(result.range_lower)
+    upper = int(result.range_upper)
+
+    assert Decimal(str(result.range_lower)) == Decimal(lower)
+    assert Decimal(str(result.range_upper)) == Decimal(upper)
+    assert lower % strategy.pool_tick_spacing == 0
+    assert upper % strategy.pool_tick_spacing == 0
+    assert upper > lower
 
 
 def test_open_position_range_breach_closes(strategy):
