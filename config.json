@@ -1,0 +1,56 @@
+{
+    "chain": "base",
+    "protocol": "aerodrome_slipstream",
+    "pool": "USDC/CBBTC/100",
+    "base_token": "CBBTC",
+    "quote_token": "USDC",
+    "rsi_period": 14,
+    "rsi_timeframe": "1h",
+    "entry_rsi_min": "42",
+    "entry_rsi_max": "58",
+    "atr_period": 14,
+    "atr_timeframe": "1h",
+    "max_atr_entry_pct": "2.2",
+    "max_atr_exit_pct": "3.5",
+    "deploy_fraction": "0.8",
+    "max_deploy_usd": "4",
+    "min_position_usd": "3",
+    "reserve_quote_usd": "1",
+    "target_base_weight": "0.5",
+    "rebalance_tolerance_pct": "0.12",
+    "max_rebalance_swap_usd": "2"
+    "swap_max_slippage": "0.005",
+    "base_range_width_pct": "8",
+    "min_range_width_pct": "5",
+    "max_range_width_pct": "15",
+    "atr_width_multiplier": "1.5",
+    "projected_il_scenario_pct": "15",
+    "max_projected_il_pct": "2.5",
+    "max_position_age_hours": 72,
+    "cooldown_minutes_after_close": 5,
+    "force_action": "",
+    "force_position_id": null,
+    "token_funding": [
+        {
+            "symbol": "USDC",
+            "address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+            "amount": "5",
+            "amount_type": "usd"
+        }
+    ],
+    "anvil_funding": {
+        "ETH": 10,
+        "USDC": 20000,
+        "CBBTC": 1
+    },
+    "paper_trading": {
+        "bootstrap": {
+            "base": {
+                "ETH": 10,
+                "USDC": 20000,
+                "CBBTC": 1
+            }
+        },
+        "strict_bootstrap": true
+    }
+}
